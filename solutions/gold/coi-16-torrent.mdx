@@ -13,7 +13,7 @@ The test data isn't very strong, so it's entirely possible that this code has a
 bug.
 
 </Warning>
-
+# Greedy Solution
 ```cpp
 #include <bits/stdc++.h>
 using namespace std;
@@ -339,5 +339,88 @@ int main() {
 	// check if you can get one better than greedy strategy
 	if (max_pref + max_pref_2 >= sz(path)) ps(res - 1);
 	else ps(res);
+}
+```
+# Ternary Search Solution
+(Analysis by Rishikesh Anabathula)
+
+First, let's solve the problem using only 1 starting node instead of 2. 
+We can solve this using tree dp. Let the starting node be the root and 
+$dp_i$ be the time it takes for node $i$ to populate it's entire 
+subtree. If $C$ are the children of $i$, we have the recurrence 
+
+<center>
+$dp_i=\max\limits_{1\le i \le |C|}(dp_{C_i}+i)$
+</center>
+
+Since we are trying to minimize this, we can greedily assign the largest 
+$dp_{C_i}$ to $i=1$ and smallest $dp_{C_i}$ to $i=|C|$, and take the 
+maximum. Our final answer is the dp value of the root.
+
+Let $path_i$ be the $i$'th node on the path from node $a$ to node $b$.
+Notice that some of the values on this path will be populated using
+node $a$, and the rest using node $b$. This means there exists a value
+$k$ where $path_1,\dots path_k$ is populated by node $a$, and
+$path_{k+1},\dots path_{|path|}$ is populated by node $b$. This means
+that we can split the tree into 2 seperate parts, where the first part is
+populated by node $a$ and the second part is populated by node $b$.
+These 2 subtrees are independent, so our answer is the maximum answer
+from each subtree.
+
+We can see that as $k$ increases, the answer for the first tree is
+non-decreasing and the answer for the second tree is non-increasing.
+This means we can ternary search on the value of $k$.
+
+```cpp
+#include <bits/stdc++.h>
+#define vi vector<int>
+#define vii vector<vector<int>>
+#define pb push_back
+using namespace std;
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+    int n,a,b; cin >> n >> a >> b;
+    a--,b--;
+    vii g(n);
+    for(int i = 1; i<n; i++){
+        int x,y; cin >> x >> y;
+        g[--x].pb(--y);
+        g[y].pb(x);
+    }
+    vi depth(n);
+    function<void(int,int)> dfs1;
+    dfs1 = [&](int s, int p){
+        if(p != -1) depth[s] = depth[p]+1;
+        for(int i: g[s]) if(i != p)
+            dfs1(i,s);
+    };
+    dfs1(a,-1);
+    vi path{b};
+    while(path[path.size()-1] != a)
+        for(int i: g[path[path.size()-1]])
+            if(depth[i]+1 == depth[path[path.size()-1]]){
+                path.pb(i);
+                break;
+            }
+    function<int(int,int,int)> dfs2;
+    dfs2 = [&](int s, int p, int stop){
+        vi next;
+        for(int i: g[s]) if(i != p && i != stop)
+            next.pb(dfs2(i,s,stop));
+        sort(next.rbegin(),next.rend());
+        int ans = 0;
+        for(int i = 0; i<next.size(); i++) uMax(ans,next[i]+i);
+        return ans+1;
+    };
+    int lo = 0, hi = path.size()-2;
+    while(lo<hi-1){
+        int m = (lo+hi)>>1;
+        int a1 = dfs2(b,-1,path[m+1]);
+        int a2 = dfs2(a,-1,path[m]);
+        if(a1<a2) lo = m;
+        else hi = m;
+    }
+    cout << min(max(dfs2(b,-1,path[lo+1]),dfs2(a,-1,path[lo])),max(dfs2(b,-1,path[hi+1]),dfs2(a,-1,path[hi])))-1 << "\n";
 }
 ```
